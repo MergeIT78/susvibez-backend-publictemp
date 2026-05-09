@@ -1,6 +1,7 @@
 import express from 'express';
 import Stripe from 'stripe';
 import Order from '../models/Order.js';
+import { sendOrderConfirmation } from '../services/email.js';
 
 const router = express.Router();
 
@@ -45,6 +46,33 @@ router.post('/stripe', express.raw({ type: 'application/json' }), async (req, re
           console.warn('⚠️  Order not found for PaymentIntent:', pi.id);
         } else {
           console.log('📦 Order updated:', updated.orderNumber);
+
+          // Send confirmation email
+          try {
+            const addr = updated.shippingAddress || {};
+            const customerEmail = addr.email || updated.guestEmail;
+            const customerName = [addr.firstName, addr.lastName].filter(Boolean).join(' ');
+            const shippingAddress = addr.address ? {
+              line1: addr.address,
+              city: addr.city,
+              state: addr.state,
+              zip: addr.zip,
+              country: addr.country,
+            } : null;
+
+            if (customerEmail) {
+              await sendOrderConfirmation({
+                customerEmail,
+                customerName,
+                orderNumber: updated.orderNumber,
+                items: updated.items,
+                totalAmount: updated.total,
+                shippingAddress,
+              });
+            }
+          } catch (emailErr) {
+            console.error('📧 Email send failed (non-fatal):', emailErr.message);
+          }
         }
         break;
       }
