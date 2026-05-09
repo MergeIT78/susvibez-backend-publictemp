@@ -99,6 +99,21 @@ router.delete('/:id', protect, adminOnly, async (req, res) => {
   }
 });
 
+// DELETE /api/products/:id/images  (admin) — removes one image URL
+router.delete('/:id/images', protect, adminOnly, async (req, res) => {
+  try {
+    const { url } = req.body;
+    const product = await Product.findByIdAndUpdate(
+      req.params.id,
+      { $pull: { images: url } },
+      { new: true }
+    );
+    res.json(product);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
 // POST /api/products/:id/upload  (admin)
 router.post('/:id/upload', protect, adminOnly, upload.array('images', 10), async (req, res) => {
   try {
