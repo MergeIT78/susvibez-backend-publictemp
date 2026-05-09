@@ -31,7 +31,7 @@ const productSchema = new mongoose.Schema({
   countryPricing: [countryPricingSchema],
   active: { type: Boolean, default: true },
   featured: { type: Boolean, default: false },
-  isNew: { type: Boolean, default: false, suppressReservedKeysWarning: true },
+  isNew: { type: Boolean, default: false },
   onSale: { type: Boolean, default: false },
   salePrice: { type: Number, default: null },
   cardFocalX: { type: Number, default: 50 }, // 0-100 horizontal focal point %
@@ -39,7 +39,7 @@ const productSchema = new mongoose.Schema({
   cardZoom:   { type: Number, default: 1  }, // 1.0–2.5 zoom multiplier
   soldCount: { type: Number, default: 0 },
   viewCount: { type: Number, default: 0 }
-}, { timestamps: true });
+}, { timestamps: true, suppressReservedKeysWarning: true });
 
 productSchema.pre('save', function (next) {
   if (!this.slug) {

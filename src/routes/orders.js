@@ -4,14 +4,17 @@ import Product from '../models/Product.js';
 import Coupon from '../models/Coupon.js';
 import User from '../models/User.js';
 import { protect, adminOnly } from '../middleware/auth.js';
-import { sendShippingConfirmation } from '../services/email.js';
+import { sendOrderConfirmation, sendShippingConfirmation } from '../services/email.js';
 
 const router = express.Router();
 
 // POST /api/orders  (public — place order)
 router.post('/', async (req, res) => {
   try {
-    const { items, shippingAddress, couponCode, currency, guestEmail, userId } = req.body;
+    const {
+      items, shippingAddress, couponCode, currency, guestEmail, userId,
+      stripePaymentIntentId, paymentStatus,
+    } = req.body;
 
     let discount = 0;
     if (couponCode) {
@@ -27,6 +30,9 @@ router.post('/', async (req, res) => {
     const subtotal = items.reduce((s, i) => s + i.price * i.quantity, 0);
     const total = Math.max(0, subtotal - discount);
 
+    // If frontend confirms payment before creating order, accept status & intent ID
+    const isPaid = paymentStatus === 'paid';
+
     const order = await Order.create({
       items,
       shippingAddress,
@@ -36,7 +42,10 @@ router.post('/', async (req, res) => {
       user: userId || null,
       subtotal,
       discount,
-      total
+      total,
+      stripePaymentIntentId: stripePaymentIntentId || '',
+      paymentStatus: isPaid ? 'paid' : 'pending',
+      fulfillmentStatus: isPaid ? 'processing' : 'unfulfilled',
     });
 
     // update sold count
@@ -49,6 +58,37 @@ router.post('/', async (req, res) => {
     // attach to user
     if (userId) {
       await User.findByIdAndUpdate(userId, { $push: { orders: order._id } });
+    }
+
+    // Send confirmation email immediately when payment is already confirmed
+    if (isPaid) {
+      try {
+        const addr = shippingAddress || {};
+        const customerEmail = addr.email || guestEmail;
+        const customerName = [addr.firstName, addr.lastName].filter(Boolean).join(' ');
+        const shippingAddr = addr.address ? {
+          line1: addr.address,
+          city: addr.city,
+          state: addr.state,
+          zip: addr.zip,
+          country: addr.country,
+        } : null;
+
+        if (customerEmail) {
+          await sendOrderConfirmation({
+            customerEmail,
+            customerName,
+            orderNumber: order.orderNumber,
+            items: order.items,
+            totalAmount: order.total,
+            currency: order.currency,
+            shippingAddress: shippingAddr,
+            // receiptUrl will be added later by webhook when Stripe confirms
+          });
+        }
+      } catch (emailErr) {
+        console.error('📧 Order confirmation email failed (non-fatal):', emailErr.message);
+      }
     }
 
     res.status(201).json(order);
