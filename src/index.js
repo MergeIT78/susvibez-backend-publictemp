@@ -21,11 +21,14 @@ const __dirname = dirname(__filename);
 
 const app = express();
 
-// CORS
+// CORS — allow all origins (file://, Cloudflare Pages, Render, localhost)
 app.use(cors({
   origin: (origin, callback) => {
-    const allowed = [process.env.CLIENT_URL, process.env.ADMIN_URL, 'http://localhost:5173', 'http://localhost:5174', 'http://127.0.0.1:5500'];
-    if (!origin || origin === 'null' || allowed.includes(origin)) {
+    // Allow: no origin (mobile/curl), file:// protocol, any https domain, localhost
+    if (!origin || origin === 'null' ||
+        origin.startsWith('http://localhost') ||
+        origin.startsWith('http://127.0.0.1') ||
+        origin.startsWith('https://')) {
       callback(null, true);
     } else {
       callback(new Error('Not allowed by CORS'));
