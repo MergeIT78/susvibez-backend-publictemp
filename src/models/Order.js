@@ -44,7 +44,12 @@ const orderSchema = new mongoose.Schema({
     default: 'unfulfilled'
   },
   stripePaymentIntentId: { type: String, default: '' },
-  notes: { type: String, default: '' }
+  stripeReceiptUrl: { type: String, default: '' },
+  notes: { type: String, default: '' },
+  trackingNumber: { type: String, default: '' },
+  trackingCarrier: { type: String, default: '' },
+  adminNotes: { type: String, default: '' },
+  shippedAt: { type: Date, default: null }
 }, { timestamps: true });
 
 orderSchema.pre('save', function (next) {

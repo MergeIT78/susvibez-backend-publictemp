@@ -32,12 +32,24 @@ router.post('/stripe', express.raw({ type: 'application/json' }), async (req, re
         const pi = event.data.object;
         console.log('✅ Payment succeeded:', pi.id, '→', pi.amount / 100, pi.currency.toUpperCase());
 
+        // Fetch Stripe receipt URL from charge
+        let stripeReceiptUrl = '';
+        try {
+          if (pi.latest_charge) {
+            const charge = await getStripe().charges.retrieve(pi.latest_charge);
+            stripeReceiptUrl = charge.receipt_url || '';
+          }
+        } catch (chargeErr) {
+          console.warn('Could not fetch Stripe charge:', chargeErr.message);
+        }
+
         // Update order: mark as paid, move to processing
         const updated = await Order.findOneAndUpdate(
           { stripePaymentIntentId: pi.id },
           {
             paymentStatus: 'paid',
             fulfillmentStatus: 'processing',
+            stripeReceiptUrl,
           },
           { new: true }
         );
@@ -67,7 +79,9 @@ router.post('/stripe', express.raw({ type: 'application/json' }), async (req, re
                 orderNumber: updated.orderNumber,
                 items: updated.items,
                 totalAmount: updated.total,
+                currency: updated.currency,
                 shippingAddress,
+                receiptUrl: stripeReceiptUrl,
               });
             }
           } catch (emailErr) {

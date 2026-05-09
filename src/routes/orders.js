@@ -4,6 +4,7 @@ import Product from '../models/Product.js';
 import Coupon from '../models/Coupon.js';
 import User from '../models/User.js';
 import { protect, adminOnly } from '../middleware/auth.js';
+import { sendShippingConfirmation } from '../services/email.js';
 
 const router = express.Router();
 
@@ -102,6 +103,60 @@ router.put('/:id', protect, adminOnly, async (req, res) => {
   try {
     const order = await Order.findByIdAndUpdate(req.params.id, req.body, { new: true });
     if (!order) return res.status(404).json({ message: 'Order not found' });
+    res.json(order);
+  } catch (err) {
+    res.status(400).json({ message: err.message });
+  }
+});
+
+// POST /api/orders/:id/fulfill  (admin — ship order + send AWB email)
+router.post('/:id/fulfill', protect, adminOnly, async (req, res) => {
+  try {
+    const { trackingNumber, trackingCarrier, adminNotes } = req.body;
+    const order = await Order.findByIdAndUpdate(
+      req.params.id,
+      {
+        trackingNumber: trackingNumber || '',
+        trackingCarrier: trackingCarrier || '',
+        adminNotes: adminNotes || '',
+        fulfillmentStatus: 'shipped',
+        shippedAt: new Date(),
+      },
+      { new: true }
+    );
+    if (!order) return res.status(404).json({ message: 'Order not found' });
+
+    // Send shipping email
+    try {
+      const addr = order.shippingAddress || {};
+      const customerEmail = addr.email || order.guestEmail;
+      const customerName = [addr.firstName, addr.lastName].filter(Boolean).join(' ');
+      const shippingAddress = addr.address ? {
+        line1: addr.address,
+        city: addr.city,
+        state: addr.state,
+        zip: addr.zip,
+        country: addr.country,
+      } : null;
+
+      if (customerEmail) {
+        await sendShippingConfirmation({
+          customerEmail,
+          customerName,
+          orderNumber: order.orderNumber,
+          items: order.items,
+          totalAmount: order.total,
+          currency: order.currency,
+          shippingAddress,
+          trackingNumber,
+          trackingCarrier,
+          adminNotes,
+        });
+      }
+    } catch (emailErr) {
+      console.error('📧 Shipping email failed (non-fatal):', emailErr.message);
+    }
+
     res.json(order);
   } catch (err) {
     res.status(400).json({ message: err.message });
