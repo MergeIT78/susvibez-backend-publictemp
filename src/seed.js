@@ -2,6 +2,8 @@
  * Run once to create the admin user and sample products:
  *   node src/seed.js
  */
+import dns from 'dns';
+dns.setServers(['8.8.8.8', '8.8.4.4']); // Google DNS — fix for SRV query issues
 import mongoose from 'mongoose';
 import dotenv from 'dotenv';
 import { fileURLToPath } from 'url';
