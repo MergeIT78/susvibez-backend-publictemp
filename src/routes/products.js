@@ -1,8 +1,16 @@
 import express from 'express';
+import sharp from 'sharp';
 import Product from '../models/Product.js';
 import Image from '../models/Image.js';
 import { protect, adminOnly } from '../middleware/auth.js';
 import { upload } from '../middleware/upload.js';
+
+async function compress(buffer) {
+  return sharp(buffer)
+    .resize({ width: 1400, withoutEnlargement: true })
+    .jpeg({ quality: 82, progressive: true })
+    .toBuffer();
+}
 
 const router = express.Router();
 
@@ -126,14 +134,15 @@ router.delete('/:id/images', protect, adminOnly, async (req, res) => {
 router.post('/:id/upload', protect, adminOnly, upload.array('images', 10), async (req, res) => {
   try {
     const saved = await Promise.all(
-      req.files.map(f =>
-        Image.create({
-          data:        f.buffer,
-          contentType: f.mimetype,
+      req.files.map(async f => {
+        const compressed = await compress(f.buffer);
+        return Image.create({
+          data:        compressed,
+          contentType: 'image/jpeg',
           filename:    f.originalname,
-          size:        f.size,
-        })
-      )
+          size:        compressed.length,
+        });
+      })
     );
     const urls = saved.map(img => `/api/images/${img._id}`);
     const product = await Product.findByIdAndUpdate(
