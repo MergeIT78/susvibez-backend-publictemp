@@ -13,6 +13,7 @@ import couponRoutes from './routes/coupons.js';
 import currencyRoutes from './routes/currency.js';
 import paymentRoutes from './routes/payments.js';
 import webhookRoutes from './routes/webhooks.js';
+import imageRoutes from './routes/images.js';
 
 dotenv.config();
 
@@ -32,6 +33,7 @@ app.use(express.json());
 app.use('/uploads', express.static(join(__dirname, '../uploads')));
 
 app.use('/api/auth', authRoutes);
+app.use('/api/images', imageRoutes);
 app.use('/api/products', productRoutes);
 app.use('/api/orders', orderRoutes);
 app.use('/api/users', userRoutes);

@@ -1,7 +1,8 @@
 import express from 'express';
 import Product from '../models/Product.js';
+import Image from '../models/Image.js';
 import { protect, adminOnly } from '../middleware/auth.js';
-import { upload, cloudinary, extractPublicId } from '../middleware/upload.js';
+import { upload } from '../middleware/upload.js';
 
 const router = express.Router();
 
@@ -99,17 +100,15 @@ router.delete('/:id', protect, adminOnly, async (req, res) => {
   }
 });
 
-// DELETE /api/products/:id/images  (admin) — removes image URL + deletes from Cloudinary
+// DELETE /api/products/:id/images  (admin) — removes image URL + deletes from MongoDB
 router.delete('/:id/images', protect, adminOnly, async (req, res) => {
   try {
     const { url } = req.body;
 
-    // Delete from Cloudinary (non-fatal if it fails)
-    const publicId = extractPublicId(url);
-    if (publicId) {
-      try { await cloudinary.uploader.destroy(publicId); } catch (e) {
-        console.warn('Cloudinary delete warn:', e.message);
-      }
+    // Extract Image _id from /api/images/:id and delete from MongoDB
+    const match = url && url.match(/\/api\/images\/([a-f\d]{24})$/i);
+    if (match) {
+      try { await Image.findByIdAndDelete(match[1]); } catch (e) {}
     }
 
     const product = await Product.findByIdAndUpdate(
@@ -123,11 +122,20 @@ router.delete('/:id/images', protect, adminOnly, async (req, res) => {
   }
 });
 
-// POST /api/products/:id/upload  (admin) — upload to Cloudinary
+// POST /api/products/:id/upload  (admin) — save to MongoDB, store /api/images/:id URL
 router.post('/:id/upload', protect, adminOnly, upload.array('images', 10), async (req, res) => {
   try {
-    // Cloudinary storage: req.files[n].path is the full Cloudinary URL
-    const urls = req.files.map(f => f.path);
+    const saved = await Promise.all(
+      req.files.map(f =>
+        Image.create({
+          data:        f.buffer,
+          contentType: f.mimetype,
+          filename:    f.originalname,
+          size:        f.size,
+        })
+      )
+    );
+    const urls = saved.map(img => `/api/images/${img._id}`);
     const product = await Product.findByIdAndUpdate(
       req.params.id,
       { $push: { images: { $each: urls } } },
