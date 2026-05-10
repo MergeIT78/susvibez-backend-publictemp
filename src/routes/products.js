@@ -1,7 +1,7 @@
 import express from 'express';
 import Product from '../models/Product.js';
 import { protect, adminOnly } from '../middleware/auth.js';
-import { upload } from '../middleware/upload.js';
+import { upload, cloudinary, extractPublicId } from '../middleware/upload.js';
 
 const router = express.Router();
 
@@ -99,10 +99,19 @@ router.delete('/:id', protect, adminOnly, async (req, res) => {
   }
 });
 
-// DELETE /api/products/:id/images  (admin) — removes one image URL
+// DELETE /api/products/:id/images  (admin) — removes image URL + deletes from Cloudinary
 router.delete('/:id/images', protect, adminOnly, async (req, res) => {
   try {
     const { url } = req.body;
+
+    // Delete from Cloudinary (non-fatal if it fails)
+    const publicId = extractPublicId(url);
+    if (publicId) {
+      try { await cloudinary.uploader.destroy(publicId); } catch (e) {
+        console.warn('Cloudinary delete warn:', e.message);
+      }
+    }
+
     const product = await Product.findByIdAndUpdate(
       req.params.id,
       { $pull: { images: url } },
@@ -114,10 +123,11 @@ router.delete('/:id/images', protect, adminOnly, async (req, res) => {
   }
 });
 
-// POST /api/products/:id/upload  (admin)
+// POST /api/products/:id/upload  (admin) — upload to Cloudinary
 router.post('/:id/upload', protect, adminOnly, upload.array('images', 10), async (req, res) => {
   try {
-    const urls = req.files.map(f => `/uploads/${f.filename}`);
+    // Cloudinary storage: req.files[n].path is the full Cloudinary URL
+    const urls = req.files.map(f => f.path);
     const product = await Product.findByIdAndUpdate(
       req.params.id,
       { $push: { images: { $each: urls } } },

@@ -1,27 +1,39 @@
 import multer from 'multer';
-import { join, dirname } from 'path';
-import { fileURLToPath } from 'url';
-import { mkdirSync } from 'fs';
+import { v2 as cloudinary } from 'cloudinary';
+import { CloudinaryStorage } from 'multer-storage-cloudinary';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
+// Configure Cloudinary
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key:    process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
+});
 
-const uploadDir = join(__dirname, '../../uploads');
-mkdirSync(uploadDir, { recursive: true });
-
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => cb(null, uploadDir),
-  filename: (req, file, cb) => {
-    const ext = file.originalname.split('.').pop();
-    cb(null, `${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`);
-  }
+const storage = new CloudinaryStorage({
+  cloudinary,
+  params: {
+    folder: 'susvibez/products',
+    allowed_formats: ['jpg', 'jpeg', 'png', 'webp', 'gif'],
+    transformation: [{ quality: 'auto', fetch_format: 'auto' }],
+  },
 });
 
 export const upload = multer({
   storage,
-  limits: { fileSize: 5 * 1024 * 1024 },
+  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB
   fileFilter: (req, file, cb) => {
     if (file.mimetype.startsWith('image/')) cb(null, true);
     else cb(new Error('Only images allowed'));
-  }
+  },
 });
+
+// Helper: extract Cloudinary public_id from URL
+// e.g. https://res.cloudinary.com/demo/image/upload/v123/susvibez/products/file.jpg
+//      → susvibez/products/file
+export function extractPublicId(url) {
+  if (!url || !url.includes('cloudinary.com')) return null;
+  const match = url.match(/\/upload\/(?:v\d+\/)?(.+)\.[a-z0-9]+$/i);
+  return match ? match[1] : null;
+}
+
+export { cloudinary };
