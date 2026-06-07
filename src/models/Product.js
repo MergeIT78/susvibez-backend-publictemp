@@ -19,10 +19,28 @@ const countryPricingSchema = new mongoose.Schema({
   price: { type: Number, required: true }
 }, { _id: false });
 
+const reviewSchema = new mongoose.Schema({
+  author: { type: String, required: true },
+  location: { type: String, default: '' },
+  rating: { type: Number, default: 5, min: 1, max: 5 },
+  text: { type: String, default: '' },
+  verified: { type: Boolean, default: true },
+  date: { type: Date, default: Date.now }
+}, { _id: true });
+
 const productSchema = new mongoose.Schema({
   name: { type: String, required: true, trim: true },
   slug: { type: String, unique: true, lowercase: true },
+  eyebrow: { type: String, default: '' }, // small label above product name (e.g. "Premium Graphic Tee")
   description: { type: String, default: '' },
+  // Per-product accordion content shown on the product page (falls back to defaults on storefront)
+  details: {
+    productDetails: { type: String, default: '' },
+    sizeGuide: { type: String, default: '' },
+    shippingReturns: { type: String, default: '' },
+    careInstructions: { type: String, default: '' },
+  },
+  reviews: [reviewSchema],
   basePrice: { type: Number, required: true }, // USD
   images: [String],
   variants: [variantSchema],

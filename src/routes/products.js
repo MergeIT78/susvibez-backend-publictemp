@@ -62,6 +62,31 @@ router.get('/admin', protect, adminOnly, async (req, res) => {
   }
 });
 
+// PATCH /api/products/bulk  (admin) — bulk update or delete selected products
+// Defined before /:id so the literal "bulk" path is unambiguous.
+router.patch('/bulk', protect, adminOnly, async (req, res) => {
+  try {
+    const { ids, action, updates } = req.body;
+    if (!Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({ message: 'No products selected' });
+    }
+    if (action === 'delete') {
+      const r = await Product.deleteMany({ _id: { $in: ids } });
+      return res.json({ deleted: r.deletedCount });
+    }
+    const ALLOWED = ['active', 'featured', 'isNew', 'onSale', 'salePrice', 'category', 'basePrice'];
+    const set = {};
+    ALLOWED.forEach(k => { if (updates?.[k] !== undefined) set[k] = updates[k]; });
+    if (Object.keys(set).length === 0) {
+      return res.status(400).json({ message: 'No changes provided' });
+    }
+    const r = await Product.updateMany({ _id: { $in: ids } }, { $set: set });
+    res.json({ matched: r.matchedCount, modified: r.modifiedCount });
+  } catch (err) {
+    res.status(400).json({ message: err.message });
+  }
+});
+
 // GET /api/products/:id  (public — by id or slug)
 router.get('/:id', async (req, res) => {
   try {
