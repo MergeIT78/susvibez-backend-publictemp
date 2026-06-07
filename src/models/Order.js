@@ -43,13 +43,14 @@ const orderSchema = new mongoose.Schema({
     enum: ['unfulfilled', 'processing', 'shipped', 'delivered', 'cancelled'],
     default: 'unfulfilled'
   },
-  stripePaymentIntentId: { type: String, default: '' },
+  stripePaymentIntentId: { type: String, default: '', index: true }, // looked up on every Stripe webhook
   stripeReceiptUrl: { type: String, default: '' },
   notes: { type: String, default: '' },
   trackingNumber: { type: String, default: '' },
   trackingCarrier: { type: String, default: '' },
   adminNotes: { type: String, default: '' },
-  shippedAt: { type: Date, default: null }
+  shippedAt: { type: Date, default: null },
+  confirmationSentAt: { type: Date, default: null } // guards against duplicate confirmation emails
 }, { timestamps: true });
 
 orderSchema.pre('save', function (next) {

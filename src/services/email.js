@@ -43,50 +43,6 @@ function footerBlock() {
     </tr>`;
 }
 
-function itemsTable(items, currency) {
-  const sym = currency === 'EUR' ? '€' : '$';
-  const rows = items.map(item => `
-    <tr>
-      <td style="padding:10px 0;border-bottom:1px solid #f0f0f0">
-        <strong>${item.name}</strong><br>
-        <span style="color:#666;font-size:13px">${item.color} / ${item.size}</span>
-      </td>
-      <td style="padding:10px 0;border-bottom:1px solid #f0f0f0;text-align:center">${item.quantity}</td>
-      <td style="padding:10px 0;border-bottom:1px solid #f0f0f0;text-align:right">${sym}${(item.price * item.quantity).toFixed(2)}</td>
-    </tr>`).join('');
-
-  return `
-    <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:24px">
-      <thead>
-        <tr style="border-bottom:2px solid #000">
-          <th style="padding:8px 0;text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.08em">Item</th>
-          <th style="padding:8px 0;text-align:center;font-size:11px;text-transform:uppercase;letter-spacing:.08em">Qty</th>
-          <th style="padding:8px 0;text-align:right;font-size:11px;text-transform:uppercase;letter-spacing:.08em">Price</th>
-        </tr>
-      </thead>
-      <tbody>${rows}</tbody>
-      <tfoot>
-        <tr>
-          <td colspan="2" style="padding:16px 0 0;font-weight:800;font-size:15px;text-transform:uppercase;letter-spacing:.05em">Total</td>
-          <td style="padding:16px 0 0;font-weight:800;font-size:18px;text-align:right">${sym}${Number(totalAmount).toFixed(2)}</td>
-        </tr>
-      </tfoot>
-    </table>`;
-}
-
-function addressBlock(shippingAddress) {
-  if (!shippingAddress) return '';
-  return `
-    <div style="border-top:1px solid #eee;padding-top:24px;margin-bottom:28px">
-      <p style="margin:0 0 8px;font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.08em;color:#888">Shipping To</p>
-      <p style="margin:0;color:#444;line-height:1.6">
-        ${shippingAddress.line1}${shippingAddress.line2 ? ', ' + shippingAddress.line2 : ''}<br>
-        ${shippingAddress.city}, ${shippingAddress.state} ${shippingAddress.zip}<br>
-        ${shippingAddress.country}
-      </p>
-    </div>`;
-}
-
 function wrapEmail(bodyRows) {
   return `<!DOCTYPE html>
 <html>

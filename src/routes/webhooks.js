@@ -1,12 +1,9 @@
 import express from 'express';
-import Stripe from 'stripe';
 import Order from '../models/Order.js';
-import { sendOrderConfirmation } from '../services/email.js';
+import { getStripe } from '../services/stripe.js';
+import { sendConfirmationOnce } from '../services/orderEmail.js';
 
 const router = express.Router();
-
-// Lazy init — dotenv must run first before this is called
-const getStripe = () => new Stripe(process.env.STRIPE_SECRET_KEY);
 
 // POST /api/webhooks/stripe
 // Stripe sends raw body — must be registered BEFORE express.json() middleware
@@ -55,38 +52,13 @@ router.post('/stripe', express.raw({ type: 'application/json' }), async (req, re
         );
 
         if (!updated) {
+          // Order may not exist yet (webhook beat the order-create call) — the
+          // order route verifies the PI itself and will send the email then.
           console.warn('⚠️  Order not found for PaymentIntent:', pi.id);
         } else {
           console.log('📦 Order updated:', updated.orderNumber);
-
-          // Send confirmation email
-          try {
-            const addr = updated.shippingAddress || {};
-            const customerEmail = addr.email || updated.guestEmail;
-            const customerName = [addr.firstName, addr.lastName].filter(Boolean).join(' ');
-            const shippingAddress = addr.address ? {
-              line1: addr.address,
-              city: addr.city,
-              state: addr.state,
-              zip: addr.zip,
-              country: addr.country,
-            } : null;
-
-            if (customerEmail) {
-              await sendOrderConfirmation({
-                customerEmail,
-                customerName,
-                orderNumber: updated.orderNumber,
-                items: updated.items,
-                totalAmount: updated.total,
-                currency: updated.currency,
-                shippingAddress,
-                receiptUrl: stripeReceiptUrl,
-              });
-            }
-          } catch (emailErr) {
-            console.error('📧 Email send failed (non-fatal):', emailErr.message);
-          }
+          // Deduped: sends only if the order route hasn't already emailed
+          await sendConfirmationOnce(updated._id, { receiptUrl: stripeReceiptUrl });
         }
         break;
       }

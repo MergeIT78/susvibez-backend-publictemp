@@ -4,91 +4,85 @@ import Product from '../models/Product.js';
 import Coupon from '../models/Coupon.js';
 import User from '../models/User.js';
 import { protect, adminOnly } from '../middleware/auth.js';
-import { sendOrderConfirmation, sendShippingConfirmation } from '../services/email.js';
+import { sendShippingConfirmation } from '../services/email.js';
+import { getStripe } from '../services/stripe.js';
+import { priceOrder } from '../services/pricing.js';
+import { sendConfirmationOnce } from '../services/orderEmail.js';
 
 const router = express.Router();
 
 // POST /api/orders  (public — place order)
+// Prices/totals are recomputed server-side and the payment is verified with
+// Stripe before the order is ever marked "paid". Client-sent prices/status are ignored.
 router.post('/', async (req, res) => {
   try {
     const {
-      items, shippingAddress, couponCode, currency, guestEmail, userId,
-      stripePaymentIntentId, paymentStatus,
+      items, shippingAddress, couponCode, currency, country,
+      guestEmail, userId, stripePaymentIntentId,
     } = req.body;
 
-    let discount = 0;
-    if (couponCode) {
-      const coupon = await Coupon.findOne({ code: couponCode.toUpperCase(), active: true });
-      if (coupon) {
-        const subtotal = items.reduce((s, i) => s + i.price * i.quantity, 0);
-        if (coupon.type === 'percentage') discount = (subtotal * coupon.value) / 100;
-        else discount = coupon.value;
-        await Coupon.findByIdAndUpdate(coupon._id, { $inc: { usedCount: 1 } });
-      }
+    // 1. Recompute pricing from the database. Stock was already validated at
+    //    create-intent (pre-charge); don't reject a paid order on a stock race —
+    //    decrement below may go negative and is reconciled in the admin.
+    const priced = await priceOrder({ items, couponCode, country, currency, checkStock: false });
+
+    // 2. Verify the payment with Stripe before trusting "paid"
+    let paymentStatus = 'pending';
+    let stripeReceiptUrl = '';
+    if (stripePaymentIntentId) {
+      const pi = await getStripe().paymentIntents.retrieve(stripePaymentIntentId);
+      const expected = Math.round(priced.total * 100);
+      const ok = pi
+        && pi.status === 'succeeded'
+        && pi.currency === priced.currency.toLowerCase()
+        && (pi.amount_received ?? pi.amount) >= expected;
+      if (!ok) return res.status(400).json({ message: 'Payment could not be verified' });
+      paymentStatus = 'paid';
+      try {
+        if (pi.latest_charge) {
+          const ch = await getStripe().charges.retrieve(pi.latest_charge);
+          stripeReceiptUrl = ch.receipt_url || '';
+        }
+      } catch { /* receipt is best-effort */ }
     }
 
-    const subtotal = items.reduce((s, i) => s + i.price * i.quantity, 0);
-    const total = Math.max(0, subtotal - discount);
-
-    // If frontend confirms payment before creating order, accept status & intent ID
-    const isPaid = paymentStatus === 'paid';
-
+    // 3. Create the order from server-computed values
     const order = await Order.create({
-      items,
+      items: priced.lineItems,
       shippingAddress,
-      couponCode: couponCode || '',
-      currency: currency || 'USD',
+      couponCode: priced.coupon ? priced.coupon.code : '',
+      currency: priced.currency,
       guestEmail: guestEmail || '',
       user: userId || null,
-      subtotal,
-      discount,
-      total,
+      subtotal: priced.subtotal,
+      discount: priced.discount,
+      total: priced.total,
       stripePaymentIntentId: stripePaymentIntentId || '',
-      paymentStatus: isPaid ? 'paid' : 'pending',
-      fulfillmentStatus: isPaid ? 'processing' : 'unfulfilled',
+      stripeReceiptUrl,
+      paymentStatus,
+      fulfillmentStatus: paymentStatus === 'paid' ? 'processing' : 'unfulfilled',
     });
 
-    // update sold count
-    for (const item of items) {
-      if (item.product) {
-        await Product.findByIdAndUpdate(item.product, { $inc: { soldCount: item.quantity } });
-      }
+    // 4. Coupon usage (only if actually applied)
+    if (priced.coupon) {
+      await Coupon.findByIdAndUpdate(priced.coupon._id, { $inc: { usedCount: 1 } });
     }
 
-    // attach to user
-    if (userId) {
-      await User.findByIdAndUpdate(userId, { $push: { orders: order._id } });
+    // 5. Decrement stock + bump soldCount atomically per line item
+    for (const li of priced.lineItems) {
+      await Product.updateOne(
+        { _id: li.product },
+        { $inc: { soldCount: li.quantity, 'variants.$[v].sizes.$[s].stock': -li.quantity } },
+        { arrayFilters: [{ 'v.color': li.color }, { 's.size': li.size }] }
+      ).catch(() => {/* variant/size mismatch — soldCount path is best-effort */});
     }
 
-    // Send confirmation email immediately when payment is already confirmed
-    if (isPaid) {
-      try {
-        const addr = shippingAddress || {};
-        const customerEmail = addr.email || guestEmail;
-        const customerName = [addr.firstName, addr.lastName].filter(Boolean).join(' ');
-        const shippingAddr = addr.address ? {
-          line1: addr.address,
-          city: addr.city,
-          state: addr.state,
-          zip: addr.zip,
-          country: addr.country,
-        } : null;
+    // 6. Attach to the user's account
+    if (userId) await User.findByIdAndUpdate(userId, { $push: { orders: order._id } });
 
-        if (customerEmail) {
-          await sendOrderConfirmation({
-            customerEmail,
-            customerName,
-            orderNumber: order.orderNumber,
-            items: order.items,
-            totalAmount: order.total,
-            currency: order.currency,
-            shippingAddress: shippingAddr,
-            // receiptUrl will be added later by webhook when Stripe confirms
-          });
-        }
-      } catch (emailErr) {
-        console.error('📧 Order confirmation email failed (non-fatal):', emailErr.message);
-      }
+    // 7. One confirmation email (deduped against the Stripe webhook)
+    if (paymentStatus === 'paid') {
+      await sendConfirmationOnce(order._id, { receiptUrl: stripeReceiptUrl });
     }
 
     res.status(201).json(order);
@@ -215,6 +209,72 @@ router.get('/stats/overview', protect, adminOnly, async (req, res) => {
       totalOrders,
       revenue: revenue[0]?.total || 0,
       pendingOrders: pending
+    });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// GET /api/orders/stats/dashboard  (admin) — real metrics (no fabricated numbers)
+router.get('/stats/dashboard', protect, adminOnly, async (req, res) => {
+  try {
+    const start = new Date();
+    start.setMonth(start.getMonth() - 11);
+    start.setDate(1); start.setHours(0, 0, 0, 0);
+
+    const [totalOrders, pendingOrders, paidAgg, monthlyAgg, countryAgg, topProduct, totalCustomers, perUser] =
+      await Promise.all([
+        Order.countDocuments(),
+        Order.countDocuments({ fulfillmentStatus: 'unfulfilled' }),
+        Order.aggregate([
+          { $match: { paymentStatus: 'paid' } },
+          { $group: { _id: null, revenue: { $sum: '$total' }, count: { $sum: 1 } } },
+        ]),
+        Order.aggregate([
+          { $match: { paymentStatus: 'paid', createdAt: { $gte: start } } },
+          { $group: { _id: { y: { $year: '$createdAt' }, m: { $month: '$createdAt' } }, revenue: { $sum: '$total' } } },
+        ]),
+        Order.aggregate([
+          { $match: { 'shippingAddress.country': { $nin: [null, ''] } } },
+          { $group: { _id: '$shippingAddress.country', count: { $sum: 1 } } },
+          { $sort: { count: -1 } }, { $limit: 1 },
+        ]),
+        Product.findOne().sort({ soldCount: -1 }).select('name soldCount'),
+        User.countDocuments({ role: 'customer' }),
+        Order.aggregate([
+          { $match: { user: { $ne: null } } },
+          { $group: { _id: '$user', n: { $sum: 1 } } },
+        ]),
+      ]);
+
+    const revenue = paidAgg[0]?.revenue || 0;
+    const paidOrders = paidAgg[0]?.count || 0;
+
+    // Continuous 12-month revenue series (fill gaps with 0)
+    const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    const series = [];
+    const cursor = new Date(start);
+    for (let i = 0; i < 12; i++) {
+      const y = cursor.getFullYear(), m = cursor.getMonth() + 1;
+      const hit = monthlyAgg.find(a => a._id.y === y && a._id.m === m);
+      series.push({ label: months[m - 1], revenue: Math.round(hit?.revenue || 0) });
+      cursor.setMonth(cursor.getMonth() + 1);
+    }
+
+    const returningCount = perUser.filter(u => u.n > 1).length;
+    const returningRate = perUser.length ? Math.round((returningCount / perUser.length) * 100) : 0;
+
+    res.json({
+      totalOrders,
+      pendingOrders,
+      revenue,
+      paidOrders,
+      avgOrderValue: paidOrders ? +(revenue / paidOrders).toFixed(2) : 0,
+      monthly: series,
+      topCountry: countryAgg[0] ? { country: countryAgg[0]._id, count: countryAgg[0].count } : null,
+      topProduct: topProduct ? { name: topProduct.name, soldCount: topProduct.soldCount } : null,
+      totalCustomers,
+      returningRate,
     });
   } catch (err) {
     res.status(500).json({ message: err.message });
