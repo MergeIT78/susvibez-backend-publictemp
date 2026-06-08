@@ -17,6 +17,7 @@ import paymentRoutes from './routes/payments.js';
 import webhookRoutes from './routes/webhooks.js';
 import imageRoutes from './routes/images.js';
 import settingsRoutes from './routes/settings.js';
+import reviewRoutes from './routes/reviews.js';
 
 dotenv.config();
 
@@ -68,6 +69,7 @@ app.use('/api/coupons', couponLimiter, couponRoutes);
 app.use('/api/currency', currencyRoutes);
 app.use('/api/payments', paymentLimiter, paymentRoutes);
 app.use('/api/settings', settingsRoutes);
+app.use('/api/reviews', reviewRoutes);
 
 app.get('/api/health', (req, res) => res.json({ status: 'ok', time: new Date() }));
 

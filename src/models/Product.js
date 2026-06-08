@@ -25,7 +25,7 @@ const reviewSchema = new mongoose.Schema({
   rating: { type: Number, default: 5, min: 1, max: 5 },
   text: { type: String, default: '' },
   verified: { type: Boolean, default: true },
-  date: { type: Date, default: Date.now }
+  date: { type: String, default: '' } // kept as a string so Etsy dates (e.g. "Jul 12, 2024") survive
 }, { _id: true });
 
 const productSchema = new mongoose.Schema({
