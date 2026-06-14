@@ -59,6 +59,9 @@ const productSchema = new mongoose.Schema({
   viewCount: { type: Number, default: 0 }
 }, { timestamps: true, suppressReservedKeysWarning: true });
 
+// Newest-first listing is the default sort on storefront & admin.
+productSchema.index({ createdAt: -1 });
+
 productSchema.pre('save', function (next) {
   if (!this.slug) {
     this.slug = this.name

@@ -10,11 +10,24 @@ const FIELDS = [
   'notifyNewOrder', 'notifyOrderShipped', 'notifyLowStock', 'notifyNewUser', 'notifyCouponUsed',
 ];
 
+const CONTENT_KEYS = ['productDetails', 'sizeGuide', 'shippingReturns', 'careInstructions'];
+
 async function getOrCreate() {
   let s = await Settings.findOne({ key: 'store' });
   if (!s) s = await Settings.create({ key: 'store' });
   return s;
 }
+
+// GET /api/settings/public  (PUBLIC) — storefront-safe subset only.
+// Never expose notification flags / internal config here.
+router.get('/public', async (req, res) => {
+  try {
+    const s = await getOrCreate();
+    res.json({ storeName: s.storeName, productDefaults: s.productDefaults });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
 
 // GET /api/settings  (admin)
 router.get('/', protect, adminOnly, async (req, res) => {
@@ -30,6 +43,12 @@ router.put('/', protect, adminOnly, async (req, res) => {
   try {
     const updates = {};
     FIELDS.forEach(k => { if (req.body[k] !== undefined) updates[k] = req.body[k]; });
+    // Global product-page text — merge per field via dot-paths so a partial
+    // update never wipes the other fields.
+    const pd = req.body.productDefaults;
+    if (pd && typeof pd === 'object') {
+      CONTENT_KEYS.forEach(k => { if (pd[k] !== undefined) updates[`productDefaults.${k}`] = String(pd[k]); });
+    }
     const s = await Settings.findOneAndUpdate(
       { key: 'store' },
       { $set: updates },

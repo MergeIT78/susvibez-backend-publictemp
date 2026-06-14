@@ -23,6 +23,15 @@ const settingsSchema = new mongoose.Schema({
   notifyLowStock: { type: Boolean, default: true },
   notifyNewUser: { type: Boolean, default: false },
   notifyCouponUsed: { type: Boolean, default: false },
+
+  // Global product-page accordion text — edited once, shown on EVERY product page.
+  // (Replaces the per-product `details` fields; served to the storefront via /settings/public.)
+  productDefaults: {
+    productDetails:   { type: String, default: '100% premium heavyweight cotton, 300GSM. Pre-shrunk, unisex fit. Ribbed collar. Double-needle sleeves and hem.' },
+    sizeGuide:        { type: String, default: 'S: Chest 36-38" | M: Chest 38-40" | L: Chest 40-42" | XL: Chest 42-44" | XXL: Chest 44-46". We recommend sizing up for an oversized fit.' },
+    shippingReturns:  { type: String, default: 'Ships within 2-3 business days. Free shipping on orders over $75. Easy 30-day returns for unworn items.' },
+    careInstructions: { type: String, default: 'Machine wash cold, inside out. Tumble dry low. Do not bleach. Iron on low heat if needed.' },
+  },
 }, { timestamps: true });
 
 export default mongoose.model('Settings', settingsSchema);
