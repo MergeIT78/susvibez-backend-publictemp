@@ -1,7 +1,7 @@
 import Product from '../models/Product.js';
 import Coupon from '../models/Coupon.js';
 
-const EUR_RATE = 0.92; // mirrors the storefront's Currency module
+const EUR_RATE = 1; // EUR is 1:1 with the USD number ($28.99 → €28.99); mirrors the storefront's Currency module
 
 // Unit price replicating the storefront's Currency.getPrice() + sale logic,
 // so the amount we charge always matches what the customer saw.
