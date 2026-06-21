@@ -3,7 +3,13 @@ import mongoose from 'mongoose';
 import cors from 'cors';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
+import sharp from 'sharp';
 import dotenv from 'dotenv';
+
+// Keep image processing lean on a 512MB instance: don't cache libvips operations
+// and process one image at a time, so uploads don't spike memory past the limit.
+sharp.cache(false);
+sharp.concurrency(1);
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 

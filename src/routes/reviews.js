@@ -13,7 +13,8 @@ router.get('/public', async (req, res) => {
     const reviews = await Review.find()
       .sort({ createdAt: -1 })
       .limit(limit)
-      .select('author location rating text verified date images');
+      .select('author location rating text verified date images')
+      .lean();
     res.json(reviews);
   } catch (err) {
     res.status(500).json({ message: err.message });

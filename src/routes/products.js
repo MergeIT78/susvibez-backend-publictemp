@@ -38,7 +38,9 @@ router.get('/', async (req, res) => {
     const [products, total] = await Promise.all([
       // Manual admin order first (sortOrder asc), then newest-first. The `_id`
       // tiebreaker keeps it deterministic when products share a createdAt.
-      Product.find(filter).sort({ sortOrder: 1, createdAt: -1, _id: -1 }).skip(skip).limit(Number(limit)),
+      // `-reviews` + lean() keep memory low — the storefront uses the global
+      // review library, not the embedded per-product reviews.
+      Product.find(filter).select('-reviews').sort({ sortOrder: 1, createdAt: -1, _id: -1 }).skip(skip).limit(Number(limit)).lean(),
       Product.countDocuments(filter)
     ]);
     res.json({ products, total, page: Number(page), pages: Math.ceil(total / Number(limit)) });
@@ -56,7 +58,7 @@ router.get('/admin', protect, adminOnly, async (req, res) => {
     // Pagination is OPTIONAL. With no `limit`, the admin gets the FULL catalog.
     // (Previously defaulted to 100, which silently hid the newest products once
     // the catalog grew past 100 — the storefront fetched 200 and showed more.)
-    let q = Product.find(filter).sort({ sortOrder: 1, createdAt: -1, _id: -1 });
+    let q = Product.find(filter).sort({ sortOrder: 1, createdAt: -1, _id: -1 }).lean();
     if (limit) {
       const lim = Number(limit);
       q = q.skip((Number(page) - 1) * lim).limit(lim);
