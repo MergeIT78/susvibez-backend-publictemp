@@ -55,12 +55,15 @@ const productSchema = new mongoose.Schema({
   cardFocalX: { type: Number, default: 50 }, // 0-100 horizontal focal point %
   cardFocalY: { type: Number, default: 15 }, // 0-100 vertical focal point %
   cardZoom:   { type: Number, default: 1  }, // 1.0–2.5 zoom multiplier
+  // Manual display order set by the admin. Lower = shown earlier. The default
+  // sentinel (9999) means "no manual order" → those fall back to newest-first.
+  sortOrder: { type: Number, default: 9999 },
   soldCount: { type: Number, default: 0 },
   viewCount: { type: Number, default: 0 }
 }, { timestamps: true, suppressReservedKeysWarning: true });
 
-// Newest-first listing is the default sort on storefront & admin.
-productSchema.index({ createdAt: -1 });
+// Default storefront/admin listing: manual order first, then newest-first.
+productSchema.index({ sortOrder: 1, createdAt: -1 });
 
 productSchema.pre('save', function (next) {
   if (!this.slug) {

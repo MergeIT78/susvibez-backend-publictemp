@@ -8,6 +8,7 @@ const reviewLibrarySchema = new mongoose.Schema({
   text: { type: String, default: '' },
   verified: { type: Boolean, default: true },
   date: { type: String, default: '' },          // kept as-is (e.g. "Jul 12, 2024")
+  images: { type: [String], default: [] },        // customer-photo URLs shown in the review
   source: { type: String, default: 'manual' },   // 'etsy' | 'manual'
   originalItem: { type: String, default: '' },    // original Etsy product title (reference)
 }, { timestamps: true });

@@ -36,9 +36,9 @@ router.get('/', async (req, res) => {
     if (search) filter.name = { $regex: search, $options: 'i' };
     const skip = (Number(page) - 1) * Number(limit);
     const [products, total] = await Promise.all([
-      // `_id` tiebreaker keeps "newest" deterministic when products share a createdAt
-      // (e.g. bulk upload in the same second) — ObjectIds are monotonic by creation.
-      Product.find(filter).sort({ createdAt: -1, _id: -1 }).skip(skip).limit(Number(limit)),
+      // Manual admin order first (sortOrder asc), then newest-first. The `_id`
+      // tiebreaker keeps it deterministic when products share a createdAt.
+      Product.find(filter).sort({ sortOrder: 1, createdAt: -1, _id: -1 }).skip(skip).limit(Number(limit)),
       Product.countDocuments(filter)
     ]);
     res.json({ products, total, page: Number(page), pages: Math.ceil(total / Number(limit)) });
@@ -56,7 +56,7 @@ router.get('/admin', protect, adminOnly, async (req, res) => {
     // Pagination is OPTIONAL. With no `limit`, the admin gets the FULL catalog.
     // (Previously defaulted to 100, which silently hid the newest products once
     // the catalog grew past 100 — the storefront fetched 200 and showed more.)
-    let q = Product.find(filter).sort({ createdAt: -1, _id: -1 });
+    let q = Product.find(filter).sort({ sortOrder: 1, createdAt: -1, _id: -1 });
     if (limit) {
       const lim = Number(limit);
       q = q.skip((Number(page) - 1) * lim).limit(lim);

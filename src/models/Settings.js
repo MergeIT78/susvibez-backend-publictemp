@@ -31,6 +31,8 @@ const settingsSchema = new mongoose.Schema({
     sizeGuide:        { type: String, default: 'S: Chest 36-38" | M: Chest 38-40" | L: Chest 40-42" | XL: Chest 42-44" | XXL: Chest 44-46". We recommend sizing up for an oversized fit.' },
     shippingReturns:  { type: String, default: 'Ships within 2-3 business days. Free shipping on orders over $75. Easy 30-day returns for unworn items.' },
     careInstructions: { type: String, default: 'Machine wash cold, inside out. Tumble dry low. Do not bleach. Iron on low heat if needed.' },
+    // Trust line shown right under the "Add to cart" button on every product page.
+    shipNote:         { type: String, default: 'Ships from USA, Europe, Canada and Australia within 1–3 business days.' },
   },
 }, { timestamps: true });
 

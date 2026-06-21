@@ -10,7 +10,7 @@ const FIELDS = [
   'notifyNewOrder', 'notifyOrderShipped', 'notifyLowStock', 'notifyNewUser', 'notifyCouponUsed',
 ];
 
-const CONTENT_KEYS = ['productDetails', 'sizeGuide', 'shippingReturns', 'careInstructions'];
+const CONTENT_KEYS = ['productDetails', 'sizeGuide', 'shippingReturns', 'careInstructions', 'shipNote'];
 
 async function getOrCreate() {
   let s = await Settings.findOne({ key: 'store' });

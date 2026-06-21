@@ -5,6 +5,21 @@ import { protect, adminOnly } from '../middleware/auth.js';
 
 const router = express.Router();
 
+// GET /api/reviews/public  (PUBLIC) — the global review library shown on EVERY
+// product page (task: reviews are shared, not per-product). Newest first.
+router.get('/public', async (req, res) => {
+  try {
+    const limit = Math.min(Number(req.query.limit) || 100, 300);
+    const reviews = await Review.find()
+      .sort({ createdAt: -1 })
+      .limit(limit)
+      .select('author location rating text verified date images');
+    res.json(reviews);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
 // GET /api/reviews  (admin) — the library, with optional search
 router.get('/', protect, adminOnly, async (req, res) => {
   try {
