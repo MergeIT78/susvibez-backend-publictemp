@@ -7,6 +7,7 @@ const router = express.Router();
 const FIELDS = [
   'storeName', 'storeEmail', 'defaultCurrency', 'taxRate', 'storeUrl', 'adminUrl',
   'freeShippingThreshold', 'standardShippingRate', 'expressShippingRate',
+  'homepageBanner', 'homepageReviewMode',
   'notifyNewOrder', 'notifyOrderShipped', 'notifyLowStock', 'notifyNewUser', 'notifyCouponUsed',
 ];
 
@@ -23,7 +24,12 @@ async function getOrCreate() {
 router.get('/public', async (req, res) => {
   try {
     const s = await getOrCreate();
-    res.json({ storeName: s.storeName, productDefaults: s.productDefaults });
+    res.json({
+      storeName: s.storeName,
+      productDefaults: s.productDefaults,
+      homepageBanner: s.homepageBanner,
+      homepageReviewMode: s.homepageReviewMode,
+    });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }

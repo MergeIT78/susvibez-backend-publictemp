@@ -17,6 +17,10 @@ const settingsSchema = new mongoose.Schema({
   standardShippingRate: { type: Number, default: 6.99 },
   expressShippingRate: { type: Number, default: 14.99 },
 
+  // Homepage
+  homepageBanner: { type: String, default: '' },             // image URL (/api/images/:id) shown after the last product row
+  homepageReviewMode: { type: String, default: 'auto5' },    // 'auto5' = only 5-star reviews | 'manual' = featuredInCarousel reviews
+
   // Notifications
   notifyNewOrder: { type: Boolean, default: true },
   notifyOrderShipped: { type: Boolean, default: true },

@@ -9,6 +9,8 @@ const reviewLibrarySchema = new mongoose.Schema({
   verified: { type: Boolean, default: true },
   date: { type: String, default: '' },          // kept as-is (e.g. "Jul 12, 2024")
   images: { type: [String], default: [] },        // customer-photo URLs shown in the review
+  hidden: { type: Boolean, default: false },      // hidden/unapproved → excluded from storefront
+  featuredInCarousel: { type: Boolean, default: false }, // shown in the homepage carousel (manual mode)
   source: { type: String, default: 'manual' },   // 'etsy' | 'manual'
   originalItem: { type: String, default: '' },    // original Etsy product title (reference)
 }, { timestamps: true });

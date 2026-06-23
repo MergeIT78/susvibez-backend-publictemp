@@ -10,10 +10,11 @@ const router = express.Router();
 router.get('/public', async (req, res) => {
   try {
     const limit = Math.min(Number(req.query.limit) || 100, 300);
-    const reviews = await Review.find()
+    // Only visible/approved reviews reach the storefront.
+    const reviews = await Review.find({ hidden: { $ne: true } })
       .sort({ createdAt: -1 })
       .limit(limit)
-      .select('author location rating text verified date images')
+      .select('author location rating text verified date images featuredInCarousel originalItem')
       .lean();
     res.json(reviews);
   } catch (err) {
