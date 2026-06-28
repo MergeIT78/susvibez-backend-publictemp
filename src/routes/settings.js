@@ -7,7 +7,7 @@ const router = express.Router();
 const FIELDS = [
   'storeName', 'storeEmail', 'defaultCurrency', 'taxRate', 'storeUrl', 'adminUrl',
   'freeShippingThreshold', 'standardShippingRate', 'expressShippingRate',
-  'homepageBanner', 'homepageReviewMode',
+  'heroImage', 'homepageBanner', 'homepageReviewMode',
   'notifyNewOrder', 'notifyOrderShipped', 'notifyLowStock', 'notifyNewUser', 'notifyCouponUsed',
 ];
 
@@ -27,6 +27,7 @@ router.get('/public', async (req, res) => {
     res.json({
       storeName: s.storeName,
       productDefaults: s.productDefaults,
+      heroImage: s.heroImage,
       homepageBanner: s.homepageBanner,
       homepageReviewMode: s.homepageReviewMode,
     });

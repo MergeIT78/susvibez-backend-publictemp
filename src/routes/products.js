@@ -27,20 +27,23 @@ router.get('/categories', async (req, res) => {
 // GET /api/products  (public)
 router.get('/', async (req, res) => {
   try {
-    const { featured, limit = 50, page = 1, search, category, new: isNew, sale } = req.query;
+    const { featured, limit = 50, page = 1, search, category, new: isNew, sale, sort } = req.query;
     const filter = { active: true };
     if (featured === 'true') filter.featured = true;
     if (isNew === 'true') filter.isNew = true;
     if (sale === 'true') filter.onSale = true;
     if (category) filter.category = { $regex: `^${category}$`, $options: 'i' };
     if (search) filter.name = { $regex: search, $options: 'i' };
+    // Default: manual admin order first, then newest. `sort=newest` forces pure
+    // latest-added order (used by the homepage "New Arrivals" row).
+    const sortSpec = sort === 'newest'
+      ? { createdAt: -1, _id: -1 }
+      : { sortOrder: 1, createdAt: -1, _id: -1 };
     const skip = (Number(page) - 1) * Number(limit);
     const [products, total] = await Promise.all([
-      // Manual admin order first (sortOrder asc), then newest-first. The `_id`
-      // tiebreaker keeps it deterministic when products share a createdAt.
       // `-reviews` + lean() keep memory low — the storefront uses the global
       // review library, not the embedded per-product reviews.
-      Product.find(filter).select('-reviews').sort({ sortOrder: 1, createdAt: -1, _id: -1 }).skip(skip).limit(Number(limit)).lean(),
+      Product.find(filter).select('-reviews').sort(sortSpec).skip(skip).limit(Number(limit)).lean(),
       Product.countDocuments(filter)
     ]);
     res.json({ products, total, page: Number(page), pages: Math.ceil(total / Number(limit)) });
