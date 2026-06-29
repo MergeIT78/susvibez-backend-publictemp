@@ -7,7 +7,7 @@ const router = express.Router();
 const FIELDS = [
   'storeName', 'storeEmail', 'defaultCurrency', 'taxRate', 'storeUrl', 'adminUrl',
   'freeShippingThreshold', 'standardShippingRate', 'expressShippingRate',
-  'heroImage', 'homepageBanner', 'homepageReviewMode',
+  'heroImage', 'homepageBanner', 'featuredImage1', 'featuredImage2', 'homepageReviewMode',
   'notifyNewOrder', 'notifyOrderShipped', 'notifyLowStock', 'notifyNewUser', 'notifyCouponUsed',
 ];
 
@@ -29,6 +29,8 @@ router.get('/public', async (req, res) => {
       productDefaults: s.productDefaults,
       heroImage: s.heroImage,
       homepageBanner: s.homepageBanner,
+      featuredImage1: s.featuredImage1,
+      featuredImage2: s.featuredImage2,
       homepageReviewMode: s.homepageReviewMode,
     });
   } catch (err) {
