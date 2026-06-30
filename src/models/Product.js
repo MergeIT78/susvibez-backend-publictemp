@@ -57,7 +57,11 @@ const productSchema = new mongoose.Schema({
   cardZoom:   { type: Number, default: 1  }, // 1.0–2.5 zoom multiplier
   // Manual display order set by the admin. Lower = shown earlier. The default
   // sentinel (9999) means "no manual order" → those fall back to newest-first.
+  // Separate orders per section so a product can be #1 in New Drops without being
+  // #1 in Best Sellers. `sortOrder` is the general catalog/shop order.
   sortOrder: { type: Number, default: 9999 },
+  featuredOrder: { type: Number, default: 9999 }, // Best Sellers / Featured section
+  newDropOrder: { type: Number, default: 9999 },  // New Drops / New Arrivals section
   soldCount: { type: Number, default: 0 },
   viewCount: { type: Number, default: 0 }
 }, { timestamps: true, suppressReservedKeysWarning: true });

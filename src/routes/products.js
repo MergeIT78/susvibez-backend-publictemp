@@ -34,11 +34,13 @@ router.get('/', async (req, res) => {
     if (sale === 'true') filter.onSale = true;
     if (category) filter.category = { $regex: `^${category}$`, $options: 'i' };
     if (search) filter.name = { $regex: search, $options: 'i' };
-    // Default: manual admin order first, then newest. `sort=newest` forces pure
-    // latest-added order (used by the homepage "New Arrivals" row).
-    const sortSpec = sort === 'newest'
-      ? { createdAt: -1, _id: -1 }
-      : { sortOrder: 1, createdAt: -1, _id: -1 };
+    // Per-section ordering. Each section has its own manual order field so a
+    // product can rank differently in Best Sellers vs New Drops vs the catalog.
+    let sortSpec;
+    if (sort === 'featured')      sortSpec = { featuredOrder: 1, createdAt: -1, _id: -1 };
+    else if (sort === 'newdrop')  sortSpec = { newDropOrder: 1, createdAt: -1, _id: -1 };
+    else if (sort === 'newest')   sortSpec = { createdAt: -1, _id: -1 };
+    else                          sortSpec = { sortOrder: 1, createdAt: -1, _id: -1 };
     const skip = (Number(page) - 1) * Number(limit);
     const [products, total] = await Promise.all([
       // `-reviews` + lean() keep memory low — the storefront uses the global
