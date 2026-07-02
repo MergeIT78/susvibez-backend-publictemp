@@ -62,6 +62,7 @@ const productSchema = new mongoose.Schema({
   sortOrder: { type: Number, default: 9999 },
   featuredOrder: { type: Number, default: 9999 }, // Best Sellers / Featured section
   newDropOrder: { type: Number, default: 9999 },  // New Drops / New Arrivals section
+  saleOrder: { type: Number, default: 9999 },     // On Sale listing
   soldCount: { type: Number, default: 0 },
   viewCount: { type: Number, default: 0 }
 }, { timestamps: true, suppressReservedKeysWarning: true });

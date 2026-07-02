@@ -39,6 +39,7 @@ router.get('/', async (req, res) => {
     let sortSpec;
     if (sort === 'featured')      sortSpec = { featuredOrder: 1, createdAt: -1, _id: -1 };
     else if (sort === 'newdrop')  sortSpec = { newDropOrder: 1, createdAt: -1, _id: -1 };
+    else if (sort === 'sale')     sortSpec = { saleOrder: 1, createdAt: -1, _id: -1 };
     else if (sort === 'newest')   sortSpec = { createdAt: -1, _id: -1 };
     else                          sortSpec = { sortOrder: 1, createdAt: -1, _id: -1 };
     const skip = (Number(page) - 1) * Number(limit);
